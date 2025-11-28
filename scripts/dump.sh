@@ -9,12 +9,15 @@ if [ ! -d "data" ]; then
     mkdir data
 fi
 
-# Download each accession
-acc=($(seq 46 51))
+# Prefetch all accessions
+prefetch --option-file srr_acclist.txt
+
+# Download each accession as fastq files and remove intermediate files
+acc=($(seq 77 82))
 for i in "${acc[@]}"; do
-    echo "SRR311699$i"
-    fasterq-dump --split-files "SRR311699$i" -O data
-    rm -fr "SRR311699$i"
+    echo "SRR298907${i}"
+    fasterq-dump --split-files "data/SRR298907${i}" -O "data/"
+    rm -fr "SRR298907${i}"
 done
 
-echo "Download complete. "
+gzip -r data/
