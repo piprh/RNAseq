@@ -6,8 +6,18 @@ date: "2026-04-30"
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+
 library("reticulate")
 library("gt")
+library("tximport")
+library("AnnotationDbi")
+library("readr")
+library("DESeq2")
+library("apeglm")
+
+cwd <- dirname(getwd())
+knitr::opts_knit$set(root.dir = cwd)
+
 ```
 
 ## Analysis of RNA-seq from transcript abundance quantifier (Salmon (Patro et al. 2017)) using DESeq2
@@ -15,8 +25,6 @@ library("gt")
 Create a summary table to describe each sample from the set.
 
 ```{r}
-library("tximport")
-library("readr")
 
 samples <- read.table(file.path("data", "sample_summary.csv"), header = TRUE, sep = ",")[, 1:2]
 samples$condition <- factor(rep(c("Ctrl", "Treat"), each=3))
@@ -29,7 +37,7 @@ gt(samples)
 
 
 ```{r}
-## Set cwd here - not full path
+
 gtf <- "~/Desktop/Projects/RNAseq_obesity/data/genome/GCF_000001635.27/alias/mm10/gencode_gtf/default/mm10.gtf.gz"
 txdb <- GenomicFeatures::makeTxDbFromGFF(gtf)
 k <- keys(txdb, keytype="TXNAME")
@@ -56,7 +64,66 @@ txi$countsFromAbundance
 
 ```{r}
 
-library("DESeq2")
-dds <- DESeqDataSetFromTximport(txi, samples, ~1)
+#Creating DESeq Object from tximport
+design <- data.frame(condition = factor(rep(c("Ctrl", "Treat"), each = 3)))
+rownames(design) <- colnames(txi$counts)
+dds <- DESeqDataSetFromTximport(txi, design, ~condition)
+
+ddsSize <- length(col(dds))
 
 ```
+
+```{r}
+
+smallestGroupSize <- 3
+keep <- rowSums(counts(dds) >= 10) >= smallestGroupSize
+dds <- dds[keep,]
+
+ddsSizeFiltered <- length(col(dds))
+
+
+```
+
+```{r}
+
+dds <- DESeq(dds)
+res <- results(dds)
+res
+
+```
+```{r}
+
+coef <- resultsNames(dds)[2]
+resLFC <- lfcShrink(dds, coef=coef, type="apeglm")
+resLFC
+
+```
+```{r}
+
+resOrdered <- res[order(res$pvalue),]
+summary(res)
+
+sum(res$padj < 0.1, na.rm=TRUE)
+
+res05 <- results(dds, alpha=0.05)
+summary(res05)
+
+sum(res05$padj < 0.05, na.rm=TRUE)
+
+```
+
+```{r}
+
+plotMA(resLFC, ylim=c(-2,2))
+
+```
+```{r}
+
+
+```
+
+
+
+
+
+
